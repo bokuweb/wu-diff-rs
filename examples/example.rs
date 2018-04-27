@@ -6,7 +6,7 @@ fn main() {
     // let old = vec!["foo", "bar", "baz"];
     // let new = vec!["foo", "baz", "hoge"];
 
-    wu_diff::diff(&[0u8; 10000], &[1u8; 10000]);
+    wu_diff::diff(&[0u8; 20000], &[1u8; 20000]);
 
     /*
     for diff in wu_diff::diff(&old, &new) {

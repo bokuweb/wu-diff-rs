@@ -2,6 +2,7 @@
 
 use std::cmp;
 
+const NONE: u8 = 0;
 const REMOVED: u8 = 1;
 const COMMON: u8 = 2;
 const ADDED: u8 = 3;
@@ -21,7 +22,7 @@ pub struct DiffElement<T: PartialEq + Clone> {
     pub data: T,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 struct FarthestPoint {
     y: isize,
     id: usize,
@@ -42,45 +43,41 @@ fn back_trace<T: PartialEq + Clone>(A: &[T],
     let mut j = routes[current.id];
     let mut diff_type = diff_types[current.id];
     loop {
-        if j == 0 && diff_type == 0 {
+        if j == 0 && diff_type == NONE {
             break;
         }
         let prev = j;
         match diff_type {
-            REMOVED if swapped => {
-                result.insert(0,
-                              DiffResult::Added(DiffElement {
-                                                    old_index: None,
-                                                    new_index: Some(a),
-                                                    data: A[a].clone(),
-                                                }));
-                a = a.wrapping_sub(1);
-            }
             REMOVED => {
+                let old_index = if swapped { None } else { Some(a) };
+                let new_index = if swapped { Some(a) } else { None };
+                let result_type = if swapped {
+                    DiffResult::Added
+                } else {
+                    DiffResult::Removed
+                };
                 result.insert(0,
-                              DiffResult::Removed(DiffElement {
-                                                      old_index: Some(a),
-                                                      new_index: None,
-                                                      data: A[a].clone(),
-                                                  }));
+                              result_type(DiffElement {
+                                              old_index,
+                                              new_index,
+                                              data: A[a].clone(),
+                                          }));
                 a = a.wrapping_sub(1);
-            }
-            ADDED if swapped => {
-                result.insert(0,
-                              DiffResult::Removed(DiffElement {
-                                                      old_index: None,
-                                                      new_index: Some(b),
-                                                      data: B[b].clone(),
-                                                  }));
-                b = b.wrapping_sub(1);
             }
             ADDED => {
+                let old_index = if swapped { Some(b) } else { None };
+                let new_index = if swapped { None } else { Some(b) };
+                let result_type = if swapped {
+                    DiffResult::Removed
+                } else {
+                    DiffResult::Added
+                };
                 result.insert(0,
-                              DiffResult::Added(DiffElement {
-                                                    old_index: None,
-                                                    new_index: Some(b),
-                                                    data: B[b].clone(),
-                                                }));
+                              result_type(DiffElement {
+                                              old_index,
+                                              new_index,
+                                              data: B[b].clone(),
+                                          }));
                 b = b.wrapping_sub(1);
             }
             _ => {
@@ -100,28 +97,49 @@ fn back_trace<T: PartialEq + Clone>(A: &[T],
     return result;
 }
 
-fn create_fp(slide: &FarthestPoint,
-             down: &FarthestPoint,
+fn create_fp(fp: &Vec<FarthestPoint>,
+             base: isize,
              k: isize,
              M: isize,
              ptr: &mut usize,
              routes: &mut Vec<usize>,
              diff_types: &mut Vec<u8>)
              -> FarthestPoint {
+
+    if base < 1 as isize {
+        let base = (base + 1) as usize;
+        let prev = fp[base].id;
+        let y = fp[base].y + 1;
+        *ptr += 1;
+        routes[*ptr] = prev;
+        diff_types[*ptr] = REMOVED;
+        return FarthestPoint { y, id: *ptr };
+    } else if base + 1 >= fp.len() as isize {
+        let base = (base - 1) as usize;
+        let prev = fp[base].id;
+        let y = fp[base].y;
+        *ptr += 1;
+        routes[*ptr] = prev;
+        diff_types[*ptr] = ADDED;
+        return FarthestPoint { y, id: *ptr };
+    }
+
+    let slide = &fp[(base - 1) as usize];
+    let down = &fp[(base + 1) as usize];
+
     if slide.y == -1 && down.y == -1 {
         return FarthestPoint { y: 0, id: 0 };
     }
+    *ptr += 1;
     return if down.y == -1 || k == M || slide.y > down.y + 1 {
                let prev = slide.id;
                let y = slide.y;
-               *ptr += 1;
                routes[*ptr] = prev;
                diff_types[*ptr] = ADDED;
                FarthestPoint { y, id: *ptr }
            } else {
                let prev = down.id;
                let y = down.y + 1;
-               *ptr += 1;
                routes[*ptr] = prev;
                diff_types[*ptr] = REMOVED;
                FarthestPoint { y, id: *ptr }
@@ -129,8 +147,8 @@ fn create_fp(slide: &FarthestPoint,
 }
 
 fn snake<T: PartialEq + Clone>(k: isize,
-                               slide: &FarthestPoint,
-                               down: &FarthestPoint,
+                               fp: &Vec<FarthestPoint>,
+                               base: isize,
                                A: &[T],
                                B: &[T],
                                ptr: &mut usize,
@@ -142,7 +160,7 @@ fn snake<T: PartialEq + Clone>(k: isize,
     if k + N < 0 || M - k < 0 {
         return FarthestPoint { y: -1, id: 0 };
     }
-    let mut fp = create_fp(&slide, &down, k, M, ptr, routes, diff_types);
+    let mut fp = create_fp(fp, base, k, M, ptr, routes, diff_types);
     while fp.y + k < M && fp.y < N && A[(fp.y + k) as usize] == B[fp.y as usize] {
         let prev = fp.id;
         *ptr += 1;
@@ -215,24 +233,15 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         }
 
         let mut s = 0;
+        let old_offset = sliced_old.len() + suffix_size;
+        let new_offset = sliced_new.len() + suffix_size;
         while s < suffix_size {
-            if swapped {
-                let old_index = s + N + suffix_size;
-                let new_index = s + M + suffix_size;
-                result.push(DiffResult::Common(DiffElement {
-                                                   old_index: Some(old_index),
-                                                   new_index: Some(new_index),
-                                                   data: old[old_index].clone(),
-                                               }));
-            } else {
-                let old_index = s + M + suffix_size;
-                let new_index = s + N + suffix_size;
-                result.push(DiffResult::Common(DiffElement {
-                                                   old_index: Some(old_index),
-                                                   new_index: Some(new_index),
-                                                   data: old[old_index].clone(),
-                                               }));
-            }
+            let old_index = s + old_offset;
+            result.push(DiffResult::Common(DiffElement {
+                                               old_index: Some(old_index),
+                                               new_index: Some(s + new_offset),
+                                               data: old[old_index].clone(),
+                                           }));
             s += 1;
         }
         return result;
@@ -251,69 +260,24 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         let mut k = -(p as isize);
         while k < delta as isize {
             let base = k + offset as isize;
-            fp[base as usize] = if base < 1 as isize {
-                let prev = fp[(base + 1) as usize].id;
-                let y = fp[(base + 1) as usize].y + 1;
-                ptr += 1;
-                routes[ptr] = prev;
-                diff_types[ptr] = REMOVED;
-                FarthestPoint { y, id: ptr }
-            } else if base + 1 >= size as isize {
-                let prev = fp[(base - 1) as usize].id;
-                let y = fp[(base - 1) as usize].y;
-                ptr += 1;
-                routes[ptr] = prev;
-                diff_types[ptr] = ADDED;
-                FarthestPoint { y, id: ptr }
-            } else {
-                snake(k,
-                      &fp[base as usize - 1],
-                      &fp[base as usize + 1],
-                      A,
-                      B,
-                      &mut ptr,
-                      &mut routes,
-                      &mut diff_types)
-            };
+            fp[base as usize] = snake(k, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
             k += 1;
         }
         let mut k = (delta + p) as isize;
         while k > delta as isize {
             let base = k + offset as isize;
-            fp[base as usize] = if base < 1 {
-                let prev = fp[(base + 1) as usize].id;
-                let y = fp[(base + 1) as usize].y + 1;
-                ptr += 1;
-                routes[ptr] = prev;
-                diff_types[ptr] = REMOVED;
-                FarthestPoint { y, id: ptr }
-            } else if base + 1 >= size as isize {
-                let prev = fp[(base - 1) as usize].id;
-                let y = fp[(base - 1) as usize].y;
-                ptr += 1;
-                routes[ptr] = prev;
-                diff_types[ptr] = ADDED;
-                FarthestPoint { y, id: ptr }
-            } else {
-                snake(k,
-                      &fp[base as usize - 1],
-                      &fp[base as usize + 1],
-                      A,
-                      B,
-                      &mut ptr,
-                      &mut routes,
-                      &mut diff_types)
-            };
+            fp[base as usize] = snake(k, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
             k -= 1;
         }
-        fp[delta + offset] = snake(delta as isize,
-                                   &fp[delta + offset - 1],
-                                   &fp[delta + offset + 1],
-                                   A,
-                                   B,
-                                   &mut ptr,
-                                   &mut routes,
-                                   &mut diff_types);
+        let base = delta + offset;
+        fp[base] = snake(delta as isize,
+                         &fp,
+                         (base) as isize,
+                         A,
+                         B,
+                         &mut ptr,
+                         &mut routes,
+                         &mut diff_types);
         p = p + 1;
     }
 
@@ -329,24 +293,15 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
     }
     result.extend(back_trace(A, B, &fp[delta + offset], swapped, &routes, &diff_types));
     let mut s = 0;
+    let old_offset = sliced_old.len() + suffix_size;
+    let new_offset = sliced_new.len() + suffix_size;
     while s < suffix_size {
-        if swapped {
-            let old_index = s + N + suffix_size;
-            let new_index = s + M + suffix_size;
-            result.push(DiffResult::Common(DiffElement {
-                                               old_index: Some(old_index),
-                                               new_index: Some(new_index),
-                                               data: old[old_index].clone(),
-                                           }));
-        } else {
-            let old_index = s + M + suffix_size;
-            let new_index = s + N + suffix_size;
-            result.push(DiffResult::Common(DiffElement {
-                                               old_index: Some(old_index),
-                                               new_index: Some(new_index),
-                                               data: old[old_index].clone(),
-                                           }));
-        }
+        let old_index = s + old_offset;
+        result.push(DiffResult::Common(DiffElement {
+                                           old_index: Some(old_index),
+                                           new_index: Some(new_offset + s),
+                                           data: old[old_index].clone(),
+                                       }));
         s += 1;
     }
     result

@@ -11,7 +11,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("100 non-equal items", |b| {
-        let (left, right) = ([0u8; 1000], [1u8; 1000]);
+        let (left, right) = ([0u8; 100], [1u8; 100]);
         b.iter(|| ::wu_diff::diff(&left, &right));
     });
 }

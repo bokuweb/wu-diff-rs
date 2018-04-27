@@ -7,7 +7,6 @@ const REMOVED: u8 = 1;
 const COMMON: u8 = 2;
 const ADDED: u8 = 3;
 
-
 #[derive(Debug, PartialEq)]
 pub enum DiffResult<T: PartialEq + Clone> {
     Removed(DiffElement<T>),
@@ -105,7 +104,6 @@ fn create_fp(fp: &Vec<FarthestPoint>,
              routes: &mut Vec<usize>,
              diff_types: &mut Vec<u8>)
              -> FarthestPoint {
-
     if base < 1 as isize {
         let base = (base + 1) as usize;
         let prev = fp[base].id;
@@ -198,7 +196,6 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
     let M = A.len();
     let N = B.len();
 
-
     if M == 0 && N == 0 && prefix_size == 0 && suffix_size == 0 {
         return result;
     }
@@ -233,8 +230,8 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         }
 
         let mut s = 0;
-        let old_offset = sliced_old.len() + suffix_size;
-        let new_offset = sliced_new.len() + suffix_size;
+        let old_offset = sliced_old.len() + prefix_size;
+        let new_offset = sliced_new.len() + prefix_size;
         while s < suffix_size {
             let old_index = s + old_offset;
             result.push(DiffResult::Common(DiffElement {
@@ -247,38 +244,31 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         return result;
     }
 
-    let offset = N;
-    let delta = M - N;
+    let offset = N as isize;
+    let D = (M - N) as isize;
     let size = M + N + 1;
     let mut fp: Vec<FarthestPoint> = vec![FarthestPoint { y: -1, id: 0 }; size];
-    let mut p = 0;
+    let mut P = 0;
     let mut ptr = 0;
     let mut routes: Vec<usize> = vec![0; M * N + size + 1];
     let mut diff_types: Vec<u8> = vec![0; M * N + size + 1];
 
-    while fp[delta + offset].y < N as isize {
-        let mut k = -(p as isize);
-        while k < delta as isize {
+    while fp[(D + offset) as usize].y < N as isize {
+        let mut k = -(P as isize);
+        while k < D as isize {
             let base = k + offset as isize;
             fp[base as usize] = snake(k, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
             k += 1;
         }
-        let mut k = (delta + p) as isize;
-        while k > delta as isize {
+        let mut k = (D + P) as isize;
+        while k > D as isize {
             let base = k + offset as isize;
             fp[base as usize] = snake(k, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
             k -= 1;
         }
-        let base = delta + offset;
-        fp[base] = snake(delta as isize,
-                         &fp,
-                         (base) as isize,
-                         A,
-                         B,
-                         &mut ptr,
-                         &mut routes,
-                         &mut diff_types);
-        p = p + 1;
+        let base = D + offset;
+        fp[base as usize] = snake(D, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
+        P = P + 1;
     }
 
     let mut result: Vec<DiffResult<T>> = vec![];
@@ -291,10 +281,11 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
                                        }));
         p += 1;
     }
-    result.extend(back_trace(A, B, &fp[delta + offset], swapped, &routes, &diff_types));
+    let base = (D + offset) as usize;
+    result.extend(back_trace(A, B, &fp[base], swapped, &routes, &diff_types));
     let mut s = 0;
-    let old_offset = sliced_old.len() + suffix_size;
-    let new_offset = sliced_new.len() + suffix_size;
+    let old_offset = sliced_old.len() + prefix_size;
+    let new_offset = sliced_new.len() + prefix_size;
     while s < suffix_size {
         let old_index = s + old_offset;
         result.push(DiffResult::Common(DiffElement {
@@ -504,5 +495,42 @@ fn should_create_diff_result_without_old() {
 fn should_create_empty_result_with_empty_input() {
     let result = diff(&vec![0u8; 0], &vec![0u8; 0]);
     let expected = vec![];
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn should_() {
+    let result = diff(&vec!["abc", "bcd", "c", "aaa", "bbb", "ccc"],
+                      &vec!["abc", "c", "aaa", "bbb", "ccc"]);
+    let expected = vec![DiffResult::Common(DiffElement {
+                                               old_index: Some(0),
+                                               new_index: Some(0),
+                                               data: "abc",
+                                           }),
+                        DiffResult::Removed(DiffElement {
+                                                old_index: Some(1),
+                                                new_index: None,
+                                                data: "bcd",
+                                            }),
+                        DiffResult::Common(DiffElement {
+                                               old_index: Some(2),
+                                               new_index: Some(1),
+                                               data: "c",
+                                           }),
+                        DiffResult::Common(DiffElement {
+                                               old_index: Some(3),
+                                               new_index: Some(2),
+                                               data: "aaa",
+                                           }),
+                        DiffResult::Common(DiffElement {
+                                               old_index: Some(4),
+                                               new_index: Some(3),
+                                               data: "bbb",
+                                           }),
+                        DiffResult::Common(DiffElement {
+                                               old_index: Some(5),
+                                               new_index: Some(4),
+                                               data: "ccc",
+                                           })];
     assert_eq!(result, expected);
 }

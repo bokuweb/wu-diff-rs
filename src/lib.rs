@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 #![allow(non_snake_case)]
 
 use std::cmp;
@@ -27,13 +29,14 @@ struct FarthestPoint {
     id: usize,
 }
 
-fn back_trace<T: PartialEq + Clone>(A: &[T],
-                                    B: &[T],
-                                    current: &FarthestPoint,
-                                    swapped: bool,
-                                    routes: &Vec<usize>,
-                                    diff_types: &Vec<u8>)
-                                    -> Vec<DiffResult<T>> {
+fn back_trace<T: PartialEq + Clone>(
+    A: &[T],
+    B: &[T],
+    current: &FarthestPoint,
+    swapped: bool,
+    routes: &Vec<usize>,
+    diff_types: &Vec<u8>,
+) -> Vec<DiffResult<T>> {
     let M = A.len();
     let N = B.len();
     let mut result: Vec<DiffResult<T>> = vec![];
@@ -55,12 +58,11 @@ fn back_trace<T: PartialEq + Clone>(A: &[T],
                 } else {
                     DiffResult::Removed
                 };
-                result.insert(0,
-                              result_type(DiffElement {
-                                              old_index,
-                                              new_index,
-                                              data: A[a].clone(),
-                                          }));
+                result.push(result_type(DiffElement {
+                    old_index,
+                    new_index,
+                    data: A[a].clone(),
+                }));
                 a = a.wrapping_sub(1);
             }
             ADDED => {
@@ -71,21 +73,19 @@ fn back_trace<T: PartialEq + Clone>(A: &[T],
                 } else {
                     DiffResult::Added
                 };
-                result.insert(0,
-                              result_type(DiffElement {
-                                              old_index,
-                                              new_index,
-                                              data: B[b].clone(),
-                                          }));
+                result.push(result_type(DiffElement {
+                    old_index,
+                    new_index,
+                    data: B[b].clone(),
+                }));
                 b = b.wrapping_sub(1);
             }
             _ => {
-                result.insert(0,
-                              DiffResult::Common(DiffElement {
-                                                     old_index: Some(a),
-                                                     new_index: Some(b),
-                                                     data: A[a].clone(),
-                                                 }));
+                result.push(DiffResult::Common(DiffElement {
+                    old_index: Some(a),
+                    new_index: Some(b),
+                    data: A[a].clone(),
+                }));
                 a = a.wrapping_sub(1);
                 b = b.wrapping_sub(1);
             }
@@ -93,17 +93,18 @@ fn back_trace<T: PartialEq + Clone>(A: &[T],
         j = routes[prev];
         diff_type = diff_types[prev];
     }
-    return result;
+    return result.into_iter().rev().collect();
 }
 
-fn create_fp(fp: &Vec<FarthestPoint>,
-             base: isize,
-             k: isize,
-             M: isize,
-             ptr: &mut usize,
-             routes: &mut Vec<usize>,
-             diff_types: &mut Vec<u8>)
-             -> FarthestPoint {
+fn create_fp(
+    fp: &Vec<FarthestPoint>,
+    base: isize,
+    k: isize,
+    M: isize,
+    ptr: &mut usize,
+    routes: &mut Vec<usize>,
+    diff_types: &mut Vec<u8>,
+) -> FarthestPoint {
     if base < 1 as isize {
         let base = (base + 1) as usize;
         let prev = fp[base].id;
@@ -130,35 +131,36 @@ fn create_fp(fp: &Vec<FarthestPoint>,
     }
     *ptr += 1;
     return if down.y == -1 || k == M || slide.y > down.y + 1 {
-               let prev = slide.id;
-               let y = slide.y;
-               routes[*ptr] = prev;
-               diff_types[*ptr] = ADDED;
-               FarthestPoint { y, id: *ptr }
-           } else {
-               let prev = down.id;
-               let y = down.y + 1;
-               routes[*ptr] = prev;
-               diff_types[*ptr] = REMOVED;
-               FarthestPoint { y, id: *ptr }
-           };
+        let prev = slide.id;
+        let y = slide.y;
+        routes[*ptr] = prev;
+        diff_types[*ptr] = ADDED;
+        FarthestPoint { y, id: *ptr }
+    } else {
+        let prev = down.id;
+        let y = down.y + 1;
+        routes[*ptr] = prev;
+        diff_types[*ptr] = REMOVED;
+        FarthestPoint { y, id: *ptr }
+    };
 }
 
-fn snake<T: PartialEq + Clone>(k: isize,
-                               fp: &Vec<FarthestPoint>,
-                               base: isize,
-                               A: &[T],
-                               B: &[T],
-                               ptr: &mut usize,
-                               routes: &mut Vec<usize>,
-                               diff_types: &mut Vec<u8>)
-                               -> FarthestPoint {
+fn snake<T: PartialEq + Clone>(
+    k: isize,
+    fps: &Vec<FarthestPoint>,
+    base: isize,
+    A: &[T],
+    B: &[T],
+    ptr: &mut usize,
+    routes: &mut Vec<usize>,
+    diff_types: &mut Vec<u8>,
+) -> FarthestPoint {
     let M = A.len() as isize;
     let N = B.len() as isize;
     if k + N < 0 || M - k < 0 {
         return FarthestPoint { y: -1, id: 0 };
     }
-    let mut fp = create_fp(fp, base, k, M, ptr, routes, diff_types);
+    let mut fp = create_fp(fps, base, k, M, ptr, routes, diff_types);
     while fp.y + k < M && fp.y < N && A[(fp.y + k) as usize] == B[fp.y as usize] {
         let prev = fp.id;
         *ptr += 1;
@@ -204,10 +206,10 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         let mut p = 0;
         while p < prefix_size {
             result.push(DiffResult::Common(DiffElement {
-                                               old_index: Some(p),
-                                               new_index: Some(p),
-                                               data: old[p].clone(),
-                                           }));
+                old_index: Some(p),
+                new_index: Some(p),
+                data: old[p].clone(),
+            }));
             p += 1;
         }
 
@@ -215,16 +217,16 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         while o < M + prefix_size {
             if swapped {
                 result.push(DiffResult::Added(DiffElement {
-                                                  old_index: None,
-                                                  new_index: Some(o),
-                                                  data: new[o].clone(),
-                                              }));
+                    old_index: None,
+                    new_index: Some(o),
+                    data: new[o].clone(),
+                }));
             } else {
                 result.push(DiffResult::Removed(DiffElement {
-                                                    old_index: Some(o),
-                                                    new_index: None,
-                                                    data: old[o].clone(),
-                                                }));
+                    old_index: Some(o),
+                    new_index: None,
+                    data: old[o].clone(),
+                }));
             }
             o += 1;
         }
@@ -235,10 +237,10 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         while s < suffix_size {
             let old_index = s + old_offset;
             result.push(DiffResult::Common(DiffElement {
-                                               old_index: Some(old_index),
-                                               new_index: Some(s + new_offset),
-                                               data: old[old_index].clone(),
-                                           }));
+                old_index: Some(old_index),
+                new_index: Some(s + new_offset),
+                data: old[old_index].clone(),
+            }));
             s += 1;
         }
         return result;
@@ -275,10 +277,10 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
     let mut p = 0;
     while p < prefix_size {
         result.push(DiffResult::Common(DiffElement {
-                                           old_index: Some(p),
-                                           new_index: Some(p),
-                                           data: old[p].clone(),
-                                       }));
+            old_index: Some(p),
+            new_index: Some(p),
+            data: old[p].clone(),
+        }));
         p += 1;
     }
     let base = (D + offset) as usize;
@@ -289,10 +291,10 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
     while s < suffix_size {
         let old_index = s + old_offset;
         result.push(DiffResult::Common(DiffElement {
-                                           old_index: Some(old_index),
-                                           new_index: Some(new_offset + s),
-                                           data: old[old_index].clone(),
-                                       }));
+            old_index: Some(old_index),
+            new_index: Some(new_offset + s),
+            data: old[old_index].clone(),
+        }));
         s += 1;
     }
     result
@@ -301,16 +303,18 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
 #[test]
 fn should_return_one_changed() {
     let result = diff(&vec!["a"], &vec!["b"]);
-    let expected = vec![DiffResult::Added(DiffElement {
-                                              old_index: None,
-                                              new_index: Some(0),
-                                              data: "b",
-                                          }),
-                        DiffResult::Removed(DiffElement {
-                                                old_index: Some(0),
-                                                new_index: None,
-                                                data: "a",
-                                            })];
+    let expected = vec![
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(0),
+            data: "b",
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(0),
+            new_index: None,
+            data: "a",
+        }),
+    ];
 
     assert_eq!(result, expected);
 }
@@ -328,10 +332,10 @@ fn should_return_empty() {
 fn should_return_one_common() {
     let result = diff(&vec!["a"], &vec!["a"]);
     let expected = vec![DiffResult::Common(DiffElement {
-                                               old_index: Some(0),
-                                               new_index: Some(0),
-                                               data: "a",
-                                           })];
+        old_index: Some(0),
+        new_index: Some(0),
+        data: "a",
+    })];
     assert_eq!(result, expected);
 }
 
@@ -339,10 +343,10 @@ fn should_return_one_common() {
 fn should_return_one_removed() {
     let result = diff(&vec!["a"], &vec![]);
     let expected = vec![DiffResult::Removed(DiffElement {
-                                                old_index: Some(0),
-                                                new_index: None,
-                                                data: "a",
-                                            })];
+        old_index: Some(0),
+        new_index: None,
+        data: "a",
+    })];
     assert_eq!(result, expected);
 }
 
@@ -350,36 +354,38 @@ fn should_return_one_removed() {
 fn should_return_one_added() {
     let result = diff(&vec![], &vec!["a"]);
     let expected = vec![DiffResult::Added(DiffElement {
-                                              old_index: None,
-                                              new_index: Some(0),
-                                              data: "a",
-                                          })];
+        old_index: None,
+        new_index: Some(0),
+        data: "a",
+    })];
     assert_eq!(result, expected);
 }
 
 #[test]
 fn should_return_two_changed() {
     let result = diff(&vec!["a", "a"], &vec!["b", "b"]);
-    let expected = vec![DiffResult::Added(DiffElement {
-                                              old_index: None,
-                                              new_index: Some(0),
-                                              data: "b",
-                                          }),
-                        DiffResult::Added(DiffElement {
-                                              old_index: None,
-                                              new_index: Some(1),
-                                              data: "b",
-                                          }),
-                        DiffResult::Removed(DiffElement {
-                                                old_index: Some(0),
-                                                new_index: None,
-                                                data: "a",
-                                            }),
-                        DiffResult::Removed(DiffElement {
-                                                old_index: Some(1),
-                                                new_index: None,
-                                                data: "a",
-                                            })];
+    let expected = vec![
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(0),
+            data: "b",
+        }),
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(1),
+            data: "b",
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(0),
+            new_index: None,
+            data: "a",
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(1),
+            new_index: None,
+            data: "a",
+        }),
+    ];
 
     assert_eq!(result, expected);
 }
@@ -387,21 +393,23 @@ fn should_return_two_changed() {
 #[test]
 fn should_create_diff_result_with_added() {
     let result = diff(&vec!["abc", "c"], &vec!["abc", "bcd", "c"]);
-    let expected = vec![DiffResult::Common(DiffElement {
-                                               old_index: Some(0),
-                                               new_index: Some(0),
-                                               data: "abc",
-                                           }),
-                        DiffResult::Added(DiffElement {
-                                              old_index: None,
-                                              new_index: Some(1),
-                                              data: "bcd",
-                                          }),
-                        DiffResult::Common(DiffElement {
-                                               old_index: Some(1),
-                                               new_index: Some(2),
-                                               data: "c",
-                                           })];
+    let expected = vec![
+        DiffResult::Common(DiffElement {
+            old_index: Some(0),
+            new_index: Some(0),
+            data: "abc",
+        }),
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(1),
+            data: "bcd",
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(1),
+            new_index: Some(2),
+            data: "c",
+        }),
+    ];
 
     assert_eq!(result, expected);
 }
@@ -409,21 +417,23 @@ fn should_create_diff_result_with_added() {
 #[test]
 fn should_create_diff_result_with_added_swapped() {
     let result = diff(&vec!["abc", "bcd", "c"], &vec!["abc", "c"]);
-    let expected = vec![DiffResult::Common(DiffElement {
-                                               old_index: Some(0),
-                                               new_index: Some(0),
-                                               data: "abc",
-                                           }),
-                        DiffResult::Removed(DiffElement {
-                                                old_index: Some(1),
-                                                new_index: None,
-                                                data: "bcd",
-                                            }),
-                        DiffResult::Common(DiffElement {
-                                               old_index: Some(2),
-                                               new_index: Some(1),
-                                               data: "c",
-                                           })];
+    let expected = vec![
+        DiffResult::Common(DiffElement {
+            old_index: Some(0),
+            new_index: Some(0),
+            data: "abc",
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(1),
+            new_index: None,
+            data: "bcd",
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(2),
+            new_index: Some(1),
+            data: "c",
+        }),
+    ];
 
     assert_eq!(result, expected);
 }
@@ -431,63 +441,69 @@ fn should_create_diff_result_with_added_swapped() {
 #[test]
 fn should_create_diff_result_with_removed() {
     let result = diff(&vec!["abc", "bcd", "c"], &vec!["abc", "c"]);
-    let expected = vec![DiffResult::Common(DiffElement {
-                                               old_index: Some(0),
-                                               new_index: Some(0),
-                                               data: "abc",
-                                           }),
-                        DiffResult::Removed(DiffElement {
-                                                old_index: Some(1),
-                                                new_index: None,
-                                                data: "bcd",
-                                            }),
-                        DiffResult::Common(DiffElement {
-                                               old_index: Some(2),
-                                               new_index: Some(1),
-                                               data: "c",
-                                           })];
+    let expected = vec![
+        DiffResult::Common(DiffElement {
+            old_index: Some(0),
+            new_index: Some(0),
+            data: "abc",
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(1),
+            new_index: None,
+            data: "bcd",
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(2),
+            new_index: Some(1),
+            data: "c",
+        }),
+    ];
     assert_eq!(result, expected);
 }
 
 #[test]
 fn should_create_diff_result_without_new() {
     let result = diff(&vec!["abc", "bcd", "c"], &vec![]);
-    let expected = vec![DiffResult::Removed(DiffElement {
-                                                old_index: Some(0),
-                                                new_index: None,
-                                                data: "abc",
-                                            }),
-                        DiffResult::Removed(DiffElement {
-                                                old_index: Some(1),
-                                                new_index: None,
-                                                data: "bcd",
-                                            }),
-                        DiffResult::Removed(DiffElement {
-                                                old_index: Some(2),
-                                                new_index: None,
-                                                data: "c",
-                                            })];
+    let expected = vec![
+        DiffResult::Removed(DiffElement {
+            old_index: Some(0),
+            new_index: None,
+            data: "abc",
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(1),
+            new_index: None,
+            data: "bcd",
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(2),
+            new_index: None,
+            data: "c",
+        }),
+    ];
     assert_eq!(result, expected);
 }
 
 #[test]
 fn should_create_diff_result_without_old() {
     let result = diff(&vec![], &vec!["abc", "bcd", "c"]);
-    let expected = vec![DiffResult::Added(DiffElement {
-                                              old_index: None,
-                                              new_index: Some(0),
-                                              data: "abc",
-                                          }),
-                        DiffResult::Added(DiffElement {
-                                              old_index: None,
-                                              new_index: Some(1),
-                                              data: "bcd",
-                                          }),
-                        DiffResult::Added(DiffElement {
-                                              old_index: None,
-                                              new_index: Some(2),
-                                              data: "c",
-                                          })];
+    let expected = vec![
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(0),
+            data: "abc",
+        }),
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(1),
+            data: "bcd",
+        }),
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(2),
+            data: "c",
+        }),
+    ];
     assert_eq!(result, expected);
 }
 
@@ -500,37 +516,41 @@ fn should_create_empty_result_with_empty_input() {
 
 #[test]
 fn should_() {
-    let result = diff(&vec!["abc", "bcd", "c", "aaa", "bbb", "ccc"],
-                      &vec!["abc", "c", "aaa", "bbb", "ccc"]);
-    let expected = vec![DiffResult::Common(DiffElement {
-                                               old_index: Some(0),
-                                               new_index: Some(0),
-                                               data: "abc",
-                                           }),
-                        DiffResult::Removed(DiffElement {
-                                                old_index: Some(1),
-                                                new_index: None,
-                                                data: "bcd",
-                                            }),
-                        DiffResult::Common(DiffElement {
-                                               old_index: Some(2),
-                                               new_index: Some(1),
-                                               data: "c",
-                                           }),
-                        DiffResult::Common(DiffElement {
-                                               old_index: Some(3),
-                                               new_index: Some(2),
-                                               data: "aaa",
-                                           }),
-                        DiffResult::Common(DiffElement {
-                                               old_index: Some(4),
-                                               new_index: Some(3),
-                                               data: "bbb",
-                                           }),
-                        DiffResult::Common(DiffElement {
-                                               old_index: Some(5),
-                                               new_index: Some(4),
-                                               data: "ccc",
-                                           })];
+    let result = diff(
+        &vec!["abc", "bcd", "c", "aaa", "bbb", "ccc"],
+        &vec!["abc", "c", "aaa", "bbb", "ccc"],
+    );
+    let expected = vec![
+        DiffResult::Common(DiffElement {
+            old_index: Some(0),
+            new_index: Some(0),
+            data: "abc",
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(1),
+            new_index: None,
+            data: "bcd",
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(2),
+            new_index: Some(1),
+            data: "c",
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(3),
+            new_index: Some(2),
+            data: "aaa",
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(4),
+            new_index: Some(3),
+            data: "bbb",
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(5),
+            new_index: Some(4),
+            data: "ccc",
+        }),
+    ];
     assert_eq!(result, expected);
 }

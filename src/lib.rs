@@ -34,8 +34,8 @@ fn back_trace<T: PartialEq + Clone>(
     B: &[T],
     current: &FarthestPoint,
     swapped: bool,
-    routes: &Vec<usize>,
-    diff_types: &Vec<u8>,
+    routes: &[usize],
+    diff_types: &[u8],
 ) -> Vec<DiffResult<T>> {
     let M = A.len();
     let N = B.len();
@@ -93,11 +93,11 @@ fn back_trace<T: PartialEq + Clone>(
         j = routes[prev];
         diff_type = diff_types[prev];
     }
-    return result.into_iter().rev().collect();
+    result.into_iter().rev().collect()
 }
 
 fn create_fp(
-    fp: &Vec<FarthestPoint>,
+    fp: &[FarthestPoint],
     base: isize,
     k: isize,
     M: isize,
@@ -130,7 +130,7 @@ fn create_fp(
         return FarthestPoint { y: 0, id: 0 };
     }
     *ptr += 1;
-    return if down.y == -1 || k == M || slide.y > down.y + 1 {
+    if down.y == -1 || k == M || slide.y > down.y + 1 {
         let prev = slide.id;
         let y = slide.y;
         routes[*ptr] = prev;
@@ -142,12 +142,12 @@ fn create_fp(
         routes[*ptr] = prev;
         diff_types[*ptr] = REMOVED;
         FarthestPoint { y, id: *ptr }
-    };
+    }
 }
 
 fn snake<T: PartialEq + Clone>(
     k: isize,
-    fps: &Vec<FarthestPoint>,
+    fps: &[FarthestPoint],
     base: isize,
     A: &[T],
     B: &[T],
@@ -169,7 +169,7 @@ fn snake<T: PartialEq + Clone>(
         routes[*ptr] = prev;
         diff_types[*ptr] = COMMON;
     }
-    return fp;
+    fp
 }
 
 pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
@@ -270,7 +270,7 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         }
         let base = D + offset;
         fp[base as usize] = snake(D, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
-        P = P + 1;
+        P += 1;
     }
 
     let mut result: Vec<DiffResult<T>> = vec![];

@@ -9,6 +9,17 @@ const REMOVED: u8 = 1;
 const COMMON: u8 = 2;
 const ADDED: u8 = 3;
 
+#[derive(Debug)]
+struct Ctx<'a, T: 'a> {
+    k: isize,
+    base: isize,
+    A: &'a [T],
+    B: &'a [T],
+    ptr: &'a mut usize,
+    routes: &'a mut [usize],
+    diff_types: &'a mut [u8],
+}
+
 #[derive(Debug, PartialEq)]
 pub enum DiffResult<T: PartialEq + Clone> {
     Removed(DiffElement<T>),
@@ -102,8 +113,8 @@ fn create_fp(
     k: isize,
     M: isize,
     ptr: &mut usize,
-    routes: &mut Vec<usize>,
-    diff_types: &mut Vec<u8>,
+    routes: &mut [usize],
+    diff_types: &mut [u8],
 ) -> FarthestPoint {
     if base < 1 as isize {
         let base = (base + 1) as usize;
@@ -145,29 +156,20 @@ fn create_fp(
     }
 }
 
-fn snake<T: PartialEq + Clone>(
-    k: isize,
-    fps: &[FarthestPoint],
-    base: isize,
-    A: &[T],
-    B: &[T],
-    ptr: &mut usize,
-    routes: &mut Vec<usize>,
-    diff_types: &mut Vec<u8>,
-) -> FarthestPoint {
-    let M = A.len() as isize;
-    let N = B.len() as isize;
-    if k + N < 0 || M - k < 0 {
+fn snake<T: PartialEq + Clone>(fps: &[FarthestPoint], ctx: &mut Ctx<T>) -> FarthestPoint {
+    let M = ctx.A.len() as isize;
+    let N = ctx.B.len() as isize;
+    if ctx.k + N < 0 || M - ctx.k < 0 {
         return FarthestPoint { y: -1, id: 0 };
     }
-    let mut fp = create_fp(fps, base, k, M, ptr, routes, diff_types);
-    while fp.y + k < M && fp.y < N && A[(fp.y + k) as usize] == B[fp.y as usize] {
+    let mut fp = create_fp(fps, ctx.base, ctx.k, M, ctx.ptr, ctx.routes, ctx.diff_types);
+    while fp.y + ctx.k < M && fp.y < N && ctx.A[(fp.y + ctx.k) as usize] == ctx.B[fp.y as usize] {
         let prev = fp.id;
-        *ptr += 1;
-        fp.id = *ptr;
+        *ctx.ptr += 1;
+        fp.id = *ctx.ptr;
         fp.y += 1;
-        routes[*ptr] = prev;
-        diff_types[*ptr] = COMMON;
+        ctx.routes[*ctx.ptr] = prev;
+        ctx.diff_types[*ctx.ptr] = COMMON;
     }
     fp
 }
@@ -255,21 +257,37 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
     let mut routes: Vec<usize> = vec![0; M * N + size + 1];
     let mut diff_types: Vec<u8> = vec![0; M * N + size + 1];
 
+    let mut ctx = Ctx {
+        k: 0,
+        base: 0,
+        A,
+        B,
+        ptr: &mut ptr,
+        routes: &mut routes,
+        diff_types: &mut diff_types,
+    };
+
     while fp[(D + offset) as usize].y < N as isize {
         let mut k = -(P as isize);
         while k < D as isize {
             let base = k + offset as isize;
-            fp[base as usize] = snake(k, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
+            ctx.k = k;
+            ctx.base = base;
+            fp[base as usize] = snake(&fp, &mut ctx);
             k += 1;
         }
         let mut k = (D + P) as isize;
         while k > D as isize {
             let base = k + offset as isize;
-            fp[base as usize] = snake(k, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
+            ctx.k = k;
+            ctx.base = base;
+            fp[base as usize] = snake(&fp, &mut ctx);
             k -= 1;
         }
         let base = D + offset;
-        fp[base as usize] = snake(D, &fp, base, A, B, &mut ptr, &mut routes, &mut diff_types);
+        ctx.k = D;
+        ctx.base = base;
+        fp[base as usize] = snake(&fp, &mut ctx);
         P += 1;
     }
 
@@ -284,7 +302,14 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         p += 1;
     }
     let base = (D + offset) as usize;
-    result.extend(back_trace(A, B, &fp[base], swapped, &routes, &diff_types));
+    result.extend(back_trace(
+        A,
+        B,
+        &fp[base],
+        swapped,
+        &ctx.routes,
+        &ctx.diff_types,
+    ));
     let mut s = 0;
     let old_offset = sliced_old.len() + prefix_size;
     let new_offset = sliced_new.len() + prefix_size;

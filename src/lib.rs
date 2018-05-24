@@ -21,17 +21,16 @@ struct Ctx<'a, T: 'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum DiffResult<T: PartialEq + Clone> {
-    Removed(DiffElement<T>),
-    Common(DiffElement<T>),
-    Added(DiffElement<T>),
+pub enum DiffResult {
+    Removed(DiffElement),
+    Common(DiffElement),
+    Added(DiffElement),
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DiffElement<T: PartialEq + Clone> {
+pub struct DiffElement {
     pub old_index: Option<usize>,
     pub new_index: Option<usize>,
-    pub data: T,
 }
 
 #[derive(Clone)]
@@ -47,10 +46,10 @@ fn back_trace<T: PartialEq + Clone>(
     swapped: bool,
     routes: &[usize],
     diff_types: &[u8],
-) -> Vec<DiffResult<T>> {
+) -> Vec<DiffResult> {
     let M = A.len();
     let N = B.len();
-    let mut result: Vec<DiffResult<T>> = vec![];
+    let mut result: Vec<DiffResult> = vec![];
     let mut a = M - 1;
     let mut b = N - 1;
     let mut j = routes[current.id];
@@ -72,7 +71,6 @@ fn back_trace<T: PartialEq + Clone>(
                 result.push(result_type(DiffElement {
                     old_index,
                     new_index,
-                    data: A[a].clone(),
                 }));
                 a = a.wrapping_sub(1);
             }
@@ -87,7 +85,6 @@ fn back_trace<T: PartialEq + Clone>(
                 result.push(result_type(DiffElement {
                     old_index,
                     new_index,
-                    data: B[b].clone(),
                 }));
                 b = b.wrapping_sub(1);
             }
@@ -95,7 +92,6 @@ fn back_trace<T: PartialEq + Clone>(
                 result.push(DiffResult::Common(DiffElement {
                     old_index: Some(a),
                     new_index: Some(b),
-                    data: A[a].clone(),
                 }));
                 a = a.wrapping_sub(1);
                 b = b.wrapping_sub(1);
@@ -174,7 +170,7 @@ fn snake<T: PartialEq + Clone>(fps: &[FarthestPoint], ctx: &mut Ctx<T>) -> Farth
     fp
 }
 
-pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
+pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult> {
     let new_len = new.len();
     let old_len = old.len();
     let common_prefix = old.iter().zip(new).take_while(|p| p.0 == p.1);
@@ -196,7 +192,7 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         (sliced_old, sliced_new)
     };
 
-    let mut result: Vec<DiffResult<T>> = Vec::new();
+    let mut result: Vec<DiffResult> = Vec::new();
     let M = A.len();
     let N = B.len();
 
@@ -210,7 +206,6 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
             result.push(DiffResult::Common(DiffElement {
                 old_index: Some(p),
                 new_index: Some(p),
-                data: old[p].clone(),
             }));
             p += 1;
         }
@@ -221,13 +216,11 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
                 result.push(DiffResult::Added(DiffElement {
                     old_index: None,
                     new_index: Some(o),
-                    data: new[o].clone(),
                 }));
             } else {
                 result.push(DiffResult::Removed(DiffElement {
                     old_index: Some(o),
                     new_index: None,
-                    data: old[o].clone(),
                 }));
             }
             o += 1;
@@ -241,7 +234,6 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
             result.push(DiffResult::Common(DiffElement {
                 old_index: Some(old_index),
                 new_index: Some(s + new_offset),
-                data: old[old_index].clone(),
             }));
             s += 1;
         }
@@ -291,13 +283,12 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         P += 1;
     }
 
-    let mut result: Vec<DiffResult<T>> = vec![];
+    let mut result: Vec<DiffResult> = vec![];
     let mut p = 0;
     while p < prefix_size {
         result.push(DiffResult::Common(DiffElement {
             old_index: Some(p),
             new_index: Some(p),
-            data: old[p].clone(),
         }));
         p += 1;
     }
@@ -318,7 +309,6 @@ pub fn diff<T: PartialEq + Clone>(old: &[T], new: &[T]) -> Vec<DiffResult<T>> {
         result.push(DiffResult::Common(DiffElement {
             old_index: Some(old_index),
             new_index: Some(new_offset + s),
-            data: old[old_index].clone(),
         }));
         s += 1;
     }
@@ -332,12 +322,12 @@ fn should_return_one_changed() {
         DiffResult::Added(DiffElement {
             old_index: None,
             new_index: Some(0),
-            data: "b",
+            // data: "b",
         }),
         DiffResult::Removed(DiffElement {
             old_index: Some(0),
             new_index: None,
-            data: "a",
+            // data: "a",
         }),
     ];
 
@@ -359,7 +349,7 @@ fn should_return_one_common() {
     let expected = vec![DiffResult::Common(DiffElement {
         old_index: Some(0),
         new_index: Some(0),
-        data: "a",
+        // data: "a",
     })];
     assert_eq!(result, expected);
 }
@@ -370,7 +360,7 @@ fn should_return_one_removed() {
     let expected = vec![DiffResult::Removed(DiffElement {
         old_index: Some(0),
         new_index: None,
-        data: "a",
+        // data: "a",
     })];
     assert_eq!(result, expected);
 }
@@ -381,7 +371,7 @@ fn should_return_one_added() {
     let expected = vec![DiffResult::Added(DiffElement {
         old_index: None,
         new_index: Some(0),
-        data: "a",
+        // data: "a",
     })];
     assert_eq!(result, expected);
 }
@@ -393,22 +383,22 @@ fn should_return_two_changed() {
         DiffResult::Added(DiffElement {
             old_index: None,
             new_index: Some(0),
-            data: "b",
+            // data: "b",
         }),
         DiffResult::Added(DiffElement {
             old_index: None,
             new_index: Some(1),
-            data: "b",
+            // data: "b",
         }),
         DiffResult::Removed(DiffElement {
             old_index: Some(0),
             new_index: None,
-            data: "a",
+            // data: "a",
         }),
         DiffResult::Removed(DiffElement {
             old_index: Some(1),
             new_index: None,
-            data: "a",
+            // data: "a",
         }),
     ];
 
@@ -422,17 +412,17 @@ fn should_create_diff_result_with_added() {
         DiffResult::Common(DiffElement {
             old_index: Some(0),
             new_index: Some(0),
-            data: "abc",
+            // data: "abc",
         }),
         DiffResult::Added(DiffElement {
             old_index: None,
             new_index: Some(1),
-            data: "bcd",
+            // data: "bcd",
         }),
         DiffResult::Common(DiffElement {
             old_index: Some(1),
             new_index: Some(2),
-            data: "c",
+            // data: "c",
         }),
     ];
 
@@ -446,17 +436,17 @@ fn should_create_diff_result_with_added_swapped() {
         DiffResult::Common(DiffElement {
             old_index: Some(0),
             new_index: Some(0),
-            data: "abc",
+            // data: "abc",
         }),
         DiffResult::Removed(DiffElement {
             old_index: Some(1),
             new_index: None,
-            data: "bcd",
+            // data: "bcd",
         }),
         DiffResult::Common(DiffElement {
             old_index: Some(2),
             new_index: Some(1),
-            data: "c",
+            // data: "c",
         }),
     ];
 
@@ -470,17 +460,17 @@ fn should_create_diff_result_with_removed() {
         DiffResult::Common(DiffElement {
             old_index: Some(0),
             new_index: Some(0),
-            data: "abc",
+            // data: "abc",
         }),
         DiffResult::Removed(DiffElement {
             old_index: Some(1),
             new_index: None,
-            data: "bcd",
+            // data: "bcd",
         }),
         DiffResult::Common(DiffElement {
             old_index: Some(2),
             new_index: Some(1),
-            data: "c",
+            // data: "c",
         }),
     ];
     assert_eq!(result, expected);
@@ -493,17 +483,17 @@ fn should_create_diff_result_without_new() {
         DiffResult::Removed(DiffElement {
             old_index: Some(0),
             new_index: None,
-            data: "abc",
+            // data: "abc",
         }),
         DiffResult::Removed(DiffElement {
             old_index: Some(1),
             new_index: None,
-            data: "bcd",
+            // data: "bcd",
         }),
         DiffResult::Removed(DiffElement {
             old_index: Some(2),
             new_index: None,
-            data: "c",
+            // data: "c",
         }),
     ];
     assert_eq!(result, expected);
@@ -516,17 +506,17 @@ fn should_create_diff_result_without_old() {
         DiffResult::Added(DiffElement {
             old_index: None,
             new_index: Some(0),
-            data: "abc",
+            // data: "abc",
         }),
         DiffResult::Added(DiffElement {
             old_index: None,
             new_index: Some(1),
-            data: "bcd",
+            // data: "bcd",
         }),
         DiffResult::Added(DiffElement {
             old_index: None,
             new_index: Some(2),
-            data: "c",
+            // data: "c",
         }),
     ];
     assert_eq!(result, expected);
@@ -549,32 +539,32 @@ fn should_() {
         DiffResult::Common(DiffElement {
             old_index: Some(0),
             new_index: Some(0),
-            data: "abc",
+            // data: "abc",
         }),
         DiffResult::Removed(DiffElement {
             old_index: Some(1),
             new_index: None,
-            data: "bcd",
+            // data: "bcd",
         }),
         DiffResult::Common(DiffElement {
             old_index: Some(2),
             new_index: Some(1),
-            data: "c",
+            // data: "c",
         }),
         DiffResult::Common(DiffElement {
             old_index: Some(3),
             new_index: Some(2),
-            data: "aaa",
+            // data: "aaa",
         }),
         DiffResult::Common(DiffElement {
             old_index: Some(4),
             new_index: Some(3),
-            data: "bbb",
+            // data: "bbb",
         }),
         DiffResult::Common(DiffElement {
             old_index: Some(5),
             new_index: Some(4),
-            data: "ccc",
+            // data: "ccc",
         }),
     ];
     assert_eq!(result, expected);

@@ -103,62 +103,53 @@ fn back_trace<T: PartialEq + Clone>(
     result.into_iter().rev().collect()
 }
 
-fn create_fp(
-    fp: &[FarthestPoint],
-    base: isize,
-    k: isize,
-    M: isize,
-    ptr: &mut usize,
-    routes: &mut [usize],
-    diff_types: &mut [u8],
-) -> FarthestPoint {
-    if base < 1 as isize {
-        let base = (base + 1) as usize;
+fn create_fp<T: PartialEq>(fp: &[FarthestPoint], ctx: &mut Ctx<T>) -> FarthestPoint {
+    if ctx.base < 1 as isize {
+        let base = (ctx.base + 1) as usize;
         let prev = fp[base].id;
         let y = fp[base].y + 1;
-        *ptr += 1;
-        routes[*ptr] = prev;
-        diff_types[*ptr] = REMOVED;
-        return FarthestPoint { y, id: *ptr };
-    } else if base + 1 >= fp.len() as isize {
-        let base = (base - 1) as usize;
+        *ctx.ptr += 1;
+        ctx.routes[*ctx.ptr] = prev;
+        ctx.diff_types[*ctx.ptr] = REMOVED;
+        return FarthestPoint { y, id: *ctx.ptr };
+    } else if ctx.base + 1 >= fp.len() as isize {
+        let base = (ctx.base - 1) as usize;
         let prev = fp[base].id;
         let y = fp[base].y;
-        *ptr += 1;
-        routes[*ptr] = prev;
-        diff_types[*ptr] = ADDED;
-        return FarthestPoint { y, id: *ptr };
+        *ctx.ptr += 1;
+        ctx.routes[*ctx.ptr] = prev;
+        ctx.diff_types[*ctx.ptr] = ADDED;
+        return FarthestPoint { y, id: *ctx.ptr };
     }
 
-    let slide = &fp[(base - 1) as usize];
-    let down = &fp[(base + 1) as usize];
+    let slide = &fp[(ctx.base - 1) as usize];
+    let down = &fp[(ctx.base + 1) as usize];
 
     if slide.y == -1 && down.y == -1 {
         return FarthestPoint { y: 0, id: 0 };
     }
-    *ptr += 1;
-    if down.y == -1 || k == M || slide.y > down.y + 1 {
+    *ctx.ptr += 1;
+    if down.y == -1 || ctx.k == ctx.A.len() as isize || slide.y > down.y + 1 {
         let prev = slide.id;
         let y = slide.y;
-        routes[*ptr] = prev;
-        diff_types[*ptr] = ADDED;
-        FarthestPoint { y, id: *ptr }
-    } else {
-        let prev = down.id;
-        let y = down.y + 1;
-        routes[*ptr] = prev;
-        diff_types[*ptr] = REMOVED;
-        FarthestPoint { y, id: *ptr }
+        ctx.routes[*ctx.ptr] = prev;
+        ctx.diff_types[*ctx.ptr] = ADDED;
+        return FarthestPoint { y, id: *ctx.ptr };
     }
+    let prev = down.id;
+    let y = down.y + 1;
+    ctx.routes[*ctx.ptr] = prev;
+    ctx.diff_types[*ctx.ptr] = REMOVED;
+    FarthestPoint { y, id: *ctx.ptr }
 }
 
-fn snake<T: PartialEq + Clone>(fps: &[FarthestPoint], ctx: &mut Ctx<T>) -> FarthestPoint {
+fn snake<T: PartialEq>(fps: &[FarthestPoint], ctx: &mut Ctx<T>) -> FarthestPoint {
     let M = ctx.A.len() as isize;
     let N = ctx.B.len() as isize;
     if ctx.k + N < 0 || M - ctx.k < 0 {
         return FarthestPoint { y: -1, id: 0 };
     }
-    let mut fp = create_fp(fps, ctx.base, ctx.k, M, ctx.ptr, ctx.routes, ctx.diff_types);
+    let mut fp = create_fp(fps, ctx);
     while fp.y + ctx.k < M && fp.y < N && ctx.A[(fp.y + ctx.k) as usize] == ctx.B[fp.y as usize] {
         let prev = fp.id;
         *ctx.ptr += 1;
@@ -346,33 +337,39 @@ fn should_return_empty() {
 #[test]
 fn should_return_one_common() {
     let result = diff(&vec!["a"], &vec!["a"]);
-    let expected = vec![DiffResult::Common(DiffElement {
-        old_index: Some(0),
-        new_index: Some(0),
-        // data: "a",
-    })];
+    let expected = vec![
+        DiffResult::Common(DiffElement {
+            old_index: Some(0),
+            new_index: Some(0),
+            // data: "a",
+        }),
+    ];
     assert_eq!(result, expected);
 }
 
 #[test]
 fn should_return_one_removed() {
     let result = diff(&vec!["a"], &vec![]);
-    let expected = vec![DiffResult::Removed(DiffElement {
-        old_index: Some(0),
-        new_index: None,
-        // data: "a",
-    })];
+    let expected = vec![
+        DiffResult::Removed(DiffElement {
+            old_index: Some(0),
+            new_index: None,
+            // data: "a",
+        }),
+    ];
     assert_eq!(result, expected);
 }
 
 #[test]
 fn should_return_one_added() {
     let result = diff(&vec![], &vec!["a"]);
-    let expected = vec![DiffResult::Added(DiffElement {
-        old_index: None,
-        new_index: Some(0),
-        // data: "a",
-    })];
+    let expected = vec![
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(0),
+            // data: "a",
+        }),
+    ];
     assert_eq!(result, expected);
 }
 

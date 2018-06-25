@@ -1,4 +1,5 @@
 # wu-diff-rs
+
 Compute differences between two slices using wu(the O(NP)) algorithm.
 
 [![](http://meritbadge.herokuapp.com/wu-diff)](https://crates.io/crates/wu-diff)
@@ -6,7 +7,7 @@ Compute differences between two slices using wu(the O(NP)) algorithm.
 
 ## Example
 
-``` rust
+```rust
 extern crate wu_diff;
 
 use self::wu_diff::*;
@@ -15,15 +16,24 @@ fn main() {
     let old = vec!["foo", "bar", "baz"];
     let new = vec!["foo", "baz", "hoge"];
 
-    for diff in lcs_diff::diff(&old, &new) {
+    for diff in wu_diff::diff(&old, &new) {
         match diff {
-            DiffResult::Added(a) => println!("+{} new index = {}", a.new_index.unwrap()),
-            DiffResult::Common(c) => {
-                println!("old index = {}, new index = {}",
-                         c.old_index.unwrap(),
-                         c.new_index.unwrap())
+            DiffResult::Added(a) => {
+                let i = a.new_index.unwrap();
+                println!("+{} new index = {}", new[i], i)
             }
-            DiffResult::Removed(r) => println!("-{} old index = {}", r.old_index.unwrap()),
+            DiffResult::Common(c) => {
+                let new_index = c.new_index.unwrap();
+                let old_index = c.old_index.unwrap();
+                println!(
+                    " {} old index = {}, new index = {}",
+                    new[new_index], old_index, new_index
+                )
+            }
+            DiffResult::Removed(r) => {
+                let i = r.old_index.unwrap();
+                println!("-{} old index = {}", old[i], i)
+            }
         }
     }
 }
@@ -31,10 +41,9 @@ fn main() {
 
 You can also run example as shown below.
 
-``` bash
+```bash
 rustup run nightly cargo run --example example
 ```
-
 
 ## LICENSE
 

@@ -8,14 +8,22 @@ fn main() {
 
     for diff in wu_diff::diff(&old, &new) {
         match diff {
-            DiffResult::Added(a) => println!("+{} new index = {}", a.data, a.new_index.unwrap()),
-            DiffResult::Common(c) => println!(
-                " {} old index = {}, new index = {}",
-                c.data,
-                c.old_index.unwrap(),
-                c.new_index.unwrap()
-            ),
-            DiffResult::Removed(r) => println!("-{} old index = {}", r.data, r.old_index.unwrap()),
+            DiffResult::Added(a) => {
+                let i = a.new_index.unwrap();
+                println!("+{} new index = {}", new[i], i)
+            }
+            DiffResult::Common(c) => {
+                let new_index = c.new_index.unwrap();
+                let old_index = c.old_index.unwrap();
+                println!(
+                    " {} old index = {}, new index = {}",
+                    new[new_index], old_index, new_index
+                )
+            }
+            DiffResult::Removed(r) => {
+                let i = r.old_index.unwrap();
+                println!("-{} old index = {}", old[i], i)
+            }
         }
     }
 }

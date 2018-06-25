@@ -2,12 +2,17 @@
 name = "wu-diff"
 version = "0.1.0"
 authors = ["bokuweb <bokuweb12@gmail.com>"]
+repository = "https://github.com/bokuweb/wu-diff-rs"
+keywords = ["diff", "lcs"]
+license = "MIT"
+readme = "README.md"
+description = "Compute differences between two slices using wu(the O(NP)) algorithm."
 
 [dependencies]
-clippy = { version = "*", optional = true }
+clippy = { version = "0.0.209", optional = true }
 
 [dev-dependencies]
-criterion = "*"
+criterion = "0.2"
 
 [[bench]]
 name = "benches"

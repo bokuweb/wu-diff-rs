@@ -1,0 +1,31 @@
+
+environment:
+  global:
+    # This will be used as part of the zipfile name
+    PROJECT_NAME: wu-diff-rs
+  matrix:
+    # Nightly channel
+    - TARGET: i686-pc-windows-gnu
+      CHANNEL: nightly
+    - TARGET: i686-pc-windows-msvc
+      CHANNEL: nightly
+    - TARGET: x86_64-pc-windows-gnu
+      CHANNEL: nightly
+    - TARGET: x86_64-pc-windows-msvc
+      CHANNEL: nightly
+
+# Install Rust and Cargo
+install:
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs
+  - rustup-init.exe --default-host %TARGET% --default-toolchain %CHANNEL% -y
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+  - rustc -Vv
+  - cargo -V
+
+# 'cargo test' takes care of building for us, so disable Appveyor's build stage. This prevents
+# the "directory does not contain a project or solution file" error.
+# source: https://github.com/starkat99/appveyor-rust/blob/master/appveyor.yml#L113
+build: false
+
+test_script:
+  - rustup run nightly cargo test

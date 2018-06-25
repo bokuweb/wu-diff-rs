@@ -4,6 +4,7 @@ Compute differences between two slices using wu(the O(NP)) algorithm.
 
 [![](http://meritbadge.herokuapp.com/wu-diff)](https://crates.io/crates/wu-diff)
 [![CircleCI](https://circleci.com/gh/bokuweb/wu-diff-rs.svg?style=svg)](https://circleci.com/gh/bokuweb/wu-diff-rs)
+[![Build status](https://ci.appveyor.com/api/projects/status/9n0gbnhfx1ta9fty/branch/master?svg=true)](https://ci.appveyor.com/project/bokuweb/wu-diff-rs/branch/master)
 
 ## Example
 

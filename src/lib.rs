@@ -106,10 +106,14 @@ fn back_trace<T: PartialEq + Clone>(
                 b = b.wrapping_sub(1);
             }
             _ => {
-                result.push(DiffResult::Common(DiffElement {
-                    old_index: Some(a.wrapping_add(prefix_size)),
-                    new_index: Some(b.wrapping_add(prefix_size)),
-                }));
+                let i = (Some(a.wrapping_add(prefix_size)), Some(b.wrapping_add(prefix_size)));
+                let (old_index, new_index) = if swapped {
+                    (i.1, i.0)
+                } else {
+                    i
+                };
+
+                result.push(DiffResult::Common(DiffElement { old_index, new_index }));
                 a = a.wrapping_sub(1);
                 b = b.wrapping_sub(1);
             }
@@ -421,6 +425,60 @@ fn should_create_diff_result_with_added() {
         DiffResult::Common(DiffElement {
             old_index: Some(1),
             new_index: Some(2),
+        }),
+    ];
+
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn should_create_diff_result_with_added_common_no_suffix() {
+    let result = diff(&vec![
+        "common",
+    ], &vec![
+        "added",
+        "common",
+        "added",
+    ]);
+    let expected = vec![
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(0),
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(0),
+            new_index: Some(1),
+        }),
+        DiffResult::Added(DiffElement {
+            old_index: None,
+            new_index: Some(2),
+        }),
+    ];
+
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn should_create_diff_result_with_added_common_no_suffix_swapped() {
+    let result = diff(&vec![
+        "added",
+        "common",
+        "added",
+    ], &vec![
+        "common",
+    ]);
+    let expected = vec![
+        DiffResult::Removed(DiffElement {
+            old_index: Some(0),
+            new_index: None,
+        }),
+        DiffResult::Common(DiffElement {
+            old_index: Some(1),
+            new_index: Some(0),
+        }),
+        DiffResult::Removed(DiffElement {
+            old_index: Some(2),
+            new_index: None,
         }),
     ];
 

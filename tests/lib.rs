@@ -1,4 +1,3 @@
-#![feature(extern_prelude)]
 extern crate base64;
 extern crate image;
 extern crate wu_diff;
@@ -37,7 +36,7 @@ mod tests {
 
     fn create_encoded_rows(image: &DynamicImage) -> Vec<String> {
         image
-            .raw_pixels()
+            .as_bytes().to_vec()
             .chunks(image.dimensions().0 as usize * 4)
             .map(|chunk| encode(chunk))
             .collect()

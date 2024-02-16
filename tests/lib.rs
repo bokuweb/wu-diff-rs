@@ -5,7 +5,8 @@ extern crate wu_diff;
 #[cfg(test)]
 mod tests {
 
-    use base64::encode;
+    use base64::engine::Engine;
+    use base64::engine::general_purpose::STANDARD;
     use image::*;
     use wu_diff::*;
 
@@ -18,8 +19,8 @@ mod tests {
         let mut removed_indexes: Vec<usize> = Vec::new();
         for d in diff.iter() {
             match d {
-                &DiffResult::Added(ref a) => added_indexes.push(a.new_index.unwrap()),
-                &DiffResult::Removed(ref r) => removed_indexes.push(r.old_index.unwrap()),
+                DiffResult::Added(a) => added_indexes.push(a.new_index.unwrap()),
+                DiffResult::Removed(r) => removed_indexes.push(r.old_index.unwrap()),
                 _ => (),
             }
         }
@@ -38,7 +39,7 @@ mod tests {
         image
             .as_bytes().to_vec()
             .chunks(image.dimensions().0 as usize * 4)
-            .map(|chunk| encode(chunk))
+            .map(|chunk| STANDARD.encode(chunk))
             .collect()
     }
 }

@@ -9,11 +9,11 @@ readme = "README.md"
 description = "Compute differences between two slices using wu(the O(NP)) algorithm."
 
 [dependencies]
-clippy = { version = "0.0.209", optional = true }
+clippy = { version = "0.0.302", optional = true }
 
 [dev-dependencies]
-criterion = "0.2"
-base64 = "0.9.0"
+criterion = "0.5"
+base64 = "0.21"
 image = "0.24.0"
 
 [[bench]]

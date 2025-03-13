@@ -14,7 +14,7 @@ clippy = { version = "0.0.302", optional = true }
 [dev-dependencies]
 criterion = "0.5"
 base64 = "0.22"
-image = "0.25.0"
+image = { version = "0.25.0", default-features = false, features = ["png"] }
 
 [[bench]]
 name = "benches"
